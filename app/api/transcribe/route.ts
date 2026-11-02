@@ -3,10 +3,17 @@ import { z } from 'zod';
 import { transcribeAudio } from '@/lib/sarvam';
 import { DEMO_TRANSCRIPT, DEMO_LANGUAGE_CODE } from '@/lib/demoData';
 
+import { getAuthenticatedUser } from '@/lib/auth-server';
+
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+  }
+
   const isDemo =
     !process.env.SARVAM_API_KEY ||
     req.nextUrl.searchParams.get('demo') === '1';

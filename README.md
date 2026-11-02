@@ -1,54 +1,66 @@
 # Aawaz (आवाज़) — Bolo. Hum likh denge.
 
-> A voice-first AI tool for Indian-language speakers. Turn speech or uploaded audio in any Indian language or Hinglish into structured meeting notes or formal, ready-to-send letters and applications.
+> A voice-first & typed AI productivity workspace for Indian-language speakers. Turn speech or problem descriptions in any Indian language or Hinglish into structured meeting notes and formal letters in seconds.
 
 ---
 
-## 🌟 Key Features
+## 🌟 What's New in This Release
 
-- **🎙️ Voice-First Input**: Speak in 11+ Indian languages (Hindi, Marathi, Bengali, Tamil, Telugu, Gujarati, Kannada, Malayalam, Punjabi, Odia, English) or code-mixed Hinglish.
-- **⏱️ 30s Safe Recording & Multi-Clip Transcribe**: Built-in 30s countdown to respect Saaras STT REST limits, automatically accumulating speech into a single transcript.
-- **📁 File Upload**: Upload pre-recorded `.mp3`, `.wav`, `.m4a`, or `.webm` files directly.
-- **MODE A — Aawaz Notes**:
-  - Clean structured notes with title, executive summary, bulleted key points, decisions, checklist action items (task, owner, due date), and open questions.
-- **MODE B — Bol Ke Likho**:
-  - Generates formal letters & applications (complaint, request, official application, refund/deposit demand, resignation, leave application, other).
-  - Configurable tone (Formal, Polite, Firm) and output language.
-  - Highlights bracketed `[placeholders]` for details not spoken so you can fill them easily.
-- **🔊 Text-to-Speech (Bulbul)**: Read the generated notes or letters aloud in authentic Indian voices with sentence-boundary chunking.
-- **🌐 Instant Translation**: Seamlessly translate generated results into other Indian languages using Sarvam Translate.
-- **💾 Local History Drawer**: Stores up to 10 past items safely in browser `localStorage`.
-- **🚀 Demo Mode**: Works out-of-the-box even without an API key or with `?demo=1` in the URL.
-- **📋 Export Options**: Quick Copy to clipboard, or Download as `.txt` and `.md`.
+- **Minimalist Modern Redesign**: Inspired by Linear, Vercel, and Notion with lots of whitespace, crisp 1px borders, HSL-tailored light/dark themes, and single orange `#F97316` accent.
+- **Account & Authentication**: User accounts with email/password auth and session protection powered by **Supabase Auth** (with resilient local demo fallback).
+- **Studio Creation Workspace**:
+  - **Speak | Type Toggle**: Seamlessly switch between speaking with the microphone and typing directly into an auto-growing textarea without losing context.
+  - **Scenario Chips**: One-click scenario templates (Security deposit demand, Sick leave, Broadband complaint, Sprint notes).
+  - **Editable Inline Letter Preview**: Paper-like preview in serif font with highlighted `[placeholders]` and inline edit mode.
+  - **Auto-Save**: Every generated result is automatically saved to the database.
+- **Personalized Dashboard**:
+  - Time-aware greeting ("Good morning, {name}")
+  - 4 Key Stat Cards (Total documents, Notes, Letters, This week)
+  - Quick Action cards with "Type instead" links
+  - Searchable, filterable activity history with instant search and pagination
+- **Settings Page**: Customize display name, default input/output language, default tone, and theme appearance.
+
+---
+
+## 📸 Screenshots & UI Preview
+
+| Landing Page | Studio Workspace |
+| :---: | :---: |
+| *Clean Linear-style hero & how-it-works* | *Dual Speak/Type interface with live timer* |
+
+| Dashboard & Stats | Formal Letter Preview |
+| :---: | :---: |
+| *Metrics, quick actions & document list* | *Paper-like card with placeholder chips* |
 
 ---
 
 ## 🏗️ Architecture
 
 ```text
-+-------------------------------------------------------------------------+
-|                              Browser UI                                 |
-|  (Next.js App Router + TypeScript + Tailwind CSS + MediaRecorder API)   |
-+-------------------+--------------------+-------------------+------------+
-                    |                    |                   |
-           1. Audio |           2. Text  |          3. Text  | 4. Text
-              Blob  |          Transcript|            Chunks |
-                    v                    v                   v
-+-------------------+--------------------+-------------------+------------+
-|             Next.js Route Handlers (Node.js runtime, maxDuration: 60s)  |
-|                                                                         |
-|   /api/transcribe      /api/process           /api/speak    /api/translate
-+---------+--------------------+---------------------+--------------+-----+
-          |                    |                     |              |
-          | multipart          | JSON                | JSON         | JSON
-          v                    v                     v              v
-+---------+--------------------+---------------------+--------------+-----+
-|                               Sarvam AI Cloud                           |
-|                                                                         |
-|  [Saaras:v4]       [sarvam-105b-     [Bulbul:v4-flash]  [sarvam-        |
-|  Speech-to-Text     conversations]    Text-to-Speech     translate:v1]  |
-|                     LLM (JSON mode)                                     |
-+-------------------------------------------------------------------------+
++---------------------------------------------------------------------------------+
+|                                Browser Client                                   |
+|   Next.js App Router (TypeScript + Tailwind CSS + Lucide + next-themes + Sonner)|
++-----------------------+----------------------------------+----------------------+
+                        |                                  |
+              Auth & DB | (Supabase SSR)       API Calls   | (Route Handlers)
+                        v                                  v
++------------------------------------+  +-----------------------------------------+
+|        Supabase Platform           |  |          Next.js Route Handlers         |
+|  - Auth (email/password, Google)   |  |  (Node.js runtime, maxDuration: 60s)    |
+|  - Profiles table + RLS            |  |                                         |
+|  - Documents table + RLS           |  |  /api/transcribe      /api/process      |
+|  - Auto-create user trigger        |  |  /api/speak           /api/translate    |
++------------------------------------+  |  /api/documents       /api/documents/:id|
+                                        +--------------------+--------------------+
+                                                             |
+                                                             v
+                                        +-----------------------------------------+
+                                        |             Sarvam AI Cloud             |
+                                        |  - Saaras:v4 (Indic STT)                |
+                                        |  - Sarvam-105b-conversations (LLM)      |
+                                        |  - Bulbul:v4-flash (Indic TTS)          |
+                                        |  - Sarvam-translate:v1 (Translation)   |
+                                        +-----------------------------------------+
 ```
 
 ---
@@ -57,84 +69,73 @@
 
 | Capability | Model | Endpoint | Purpose |
 |------------|-------|----------|---------|
-| **Speech-to-Text (Saaras)** | `saaras:v4` | `POST /speech-to-text` | High-accuracy transcription of Indic languages & Hinglish audio. |
-| **LLM Reasoning & Formatting** | `sarvam-105b-conversations` | `POST /v1/chat/completions` | Generates structured JSON notes & formal letters without hallucinations. |
-| **Text-to-Speech (Bulbul)** | `bulbul:v4-flash` (`meera`) | `POST /text-to-speech` | Natural Indic audio speech playback with sentence-boundary chunking. |
+| **Speech-to-Text (Saaras)** | `saaras:v4` | `POST /speech-to-text` | High-accuracy transcription of Indic speech & code-mixed Hinglish. |
+| **LLM Reasoning & JSON** | `sarvam-105b-conversations` | `POST /v1/chat/completions` | Zero-shot structured notes & formal letter generation with JSON repair. |
+| **Text-to-Speech (Bulbul)** | `bulbul:v4-flash` (`meera`) | `POST /text-to-speech` | Authentic Indian voice playback with sentence-boundary chunking. |
 | **Machine Translation** | `sarvam-translate:v1` | `POST /translate` | Cross-language translation across 11+ official Indian languages. |
 
 ---
 
-## 🛠️ Tech Stack
+## 🗄️ Supabase Database Setup
 
-- **Framework**: [Next.js 15+ (App Router)](https://nextjs.org/)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Validation**: [Zod](https://zod.dev/)
-- **Persistence**: Browser `localStorage` (No external database required)
-- **Runtime**: Node.js (`export const runtime = "nodejs"`)
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open the **SQL Editor** in your Supabase project dashboard.
+3. Paste the contents of [`supabase/schema.sql`](./supabase/schema.sql) and click **Run**.
+4. Retrieve your **Project URL** and **Anon Key** from *Project Settings > API*.
 
----
-
-## 🚀 Local Setup
-
-### 1. Clone & Install Dependencies
-```bash
-git clone <your-repo-url>
-cd SARWAM_Buildathon
-npm install
-```
-
-### 2. Configure Environment Variables
-Copy `.env.example` to `.env`:
-```bash
-cp .env.example .env
-```
-Open `.env` and insert your Sarvam subscription key:
-```env
-SARVAM_API_KEY=your_sarvam_api_key_here
-```
-
-### 3. Run Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-> **Tip**: You can test demo mode at any time without consuming credits by appending `?demo=1` to the URL.
+> **Note**: If Supabase environment variables are omitted, Aawaz automatically runs in **Demo Mode** using browser `localStorage` and a guest profile so the entire app can still be previewed and tested without configuration.
 
 ---
 
 ## ⚙️ Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `SARVAM_API_KEY` | **Yes** | — | Your Sarvam AI API subscription key from [dashboard.sarvam.ai](https://dashboard.sarvam.ai). |
-| `SARVAM_STT_MODEL` | No | `saaras:v4` | Sarvam STT model. |
-| `SARVAM_LLM_MODEL` | No | `sarvam-105b-conversations` | Sarvam chat completions LLM model. |
-| `SARVAM_TTS_MODEL` | No | `bulbul:v4-flash` | Sarvam TTS model. |
-| `SARVAM_TTS_SPEAKER` | No | `meera` | Voice persona for TTS (`meera`, `arvind`, etc.). |
-| `SARVAM_TRANSLATE_MODEL`| No | `sarvam-translate:v1` | Sarvam translation model. |
+| Variable | Required | Description |
+|---|:---:|---|
+| `SARVAM_API_KEY` | **Yes** | Your Sarvam subscription key from [dashboard.sarvam.ai](https://dashboard.sarvam.ai) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Optional | Your Supabase Project URL (e.g. `https://xyz.supabase.co`) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional | Your Supabase public Anon key |
+| `NEXT_PUBLIC_ENABLE_GOOGLE` | Optional | Set to `true` to display "Continue with Google" button |
+| `SARVAM_STT_MODEL` | No | Defaults to `saaras:v4` |
+| `SARVAM_LLM_MODEL` | No | Defaults to `sarvam-105b-conversations` |
+| `SARVAM_TTS_MODEL` | No | Defaults to `bulbul:v4-flash` |
+| `SARVAM_TTS_SPEAKER` | No | Defaults to `meera` |
+| `SARVAM_TRANSLATE_MODEL` | No | Defaults to `sarvam-translate:v1` |
+
+---
+
+## 🚀 Local Development
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Setup env file
+cp .env.example .env
+# Edit .env with your SARVAM_API_KEY and Supabase keys
+
+# 3. Start development server
+npm run dev
+```
+
+Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
 ## 🚢 Vercel Deployment Instructions
 
-1. **Push to GitHub**:
+1. Push your latest code to GitHub:
    ```bash
-   git init
    git add .
-   git commit -m "feat: Aawaz voice-first AI app for Indian languages"
-   gh repo create aawaz --public --source=. --push
+   git commit -m "feat: complete redesign with auth, dashboard, and typed input"
+   git push origin main
    ```
-2. **Import into Vercel**:
-   - Go to [vercel.com/new](https://vercel.com/new).
-   - Select your `aawaz` repository.
-   - Leave Framework Preset as **Next.js**.
-3. **Add Environment Variables**:
-   - Under **Environment Variables**, add:
-     - Name: `SARVAM_API_KEY`
-     - Value: `your_actual_sarvam_key`
-4. **Deploy**:
-   - Click **Deploy**.
-   - Your application will be live in ~1-2 minutes!
-   - *Note*: If you update or add environment variables later, trigger a Redeploy under **Deployments > Redeploy** for them to take effect.
+2. In the [Vercel Dashboard](https://vercel.com):
+   - Navigate to your **aawaz** project.
+   - Go to **Settings > Environment Variables**.
+   - Add/verify:
+     - `SARVAM_API_KEY`
+     - `NEXT_PUBLIC_SUPABASE_URL` *(if using Supabase)*
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` *(if using Supabase)*
+3. Trigger a redeploy:
+   - Go to the **Deployments** tab.
+   - Click the three dots `...` on the latest deployment and select **Redeploy**.

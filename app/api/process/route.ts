@@ -5,6 +5,8 @@ import { buildNotesPrompt, buildLetterPrompt } from '@/lib/prompts';
 import { parseJson } from '@/lib/parseJson';
 import { DEMO_NOTES, DEMO_LETTER } from '@/lib/demoData';
 
+import { getAuthenticatedUser } from '@/lib/auth-server';
+
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
@@ -17,6 +19,11 @@ const ProcessSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+  }
+
   const isDemo =
     !process.env.SARVAM_API_KEY ||
     req.nextUrl.searchParams.get('demo') === '1';

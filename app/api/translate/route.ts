@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { translateText } from '@/lib/sarvam';
 import { DEMO_TRANSLATED } from '@/lib/demoData';
 
+import { getAuthenticatedUser } from '@/lib/auth-server';
+
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
@@ -13,6 +15,11 @@ const TranslateSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+  }
+
   const isDemo =
     !process.env.SARVAM_API_KEY ||
     req.nextUrl.searchParams.get('demo') === '1';
